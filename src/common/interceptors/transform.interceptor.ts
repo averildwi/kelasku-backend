@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import type { Response } from 'express';
 
 export interface StandardResponse<T> {
   statusCode: number;
@@ -47,22 +48,21 @@ export class MessageResponse<T> {
 }
 
 @Injectable()
-export class TransformInterceptor<T>
-  implements NestInterceptor<T, StandardResponse<T> | StreamableFile | any>
-{
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<StandardResponse<T> | StreamableFile | any> {
+export class TransformInterceptor<T> implements NestInterceptor<T, unknown> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const response = context.switchToHttp().getResponse<Response>();
+
     return next.handle().pipe(
-      map((result) => {
-        const statusCode = context.switchToHttp().getResponse().statusCode;
+      map((result: unknown) => {
+        const statusCode = response.statusCode;
 
         // Totally bypass wrapping for StreamableFile (used for file downloads)
         if (result instanceof StreamableFile) return result;
 
         // Explicitly bypass wrapping
-        if (result instanceof RawResponse) return result.payload;
+        if (result instanceof RawResponse) {
+          return (result as RawResponse<unknown>).payload;
+        }
 
         // Pagination
         if (result instanceof Paginated) {
@@ -79,8 +79,8 @@ export class TransformInterceptor<T>
         if (result instanceof MessageResponse) {
           return {
             statusCode,
-            message: result.message,
-            data: result.payload,
+            message: (result as MessageResponse<unknown>).message,
+            data: (result as MessageResponse<unknown>).payload,
             timestamp: new Date().toISOString(),
           };
         }

@@ -4,12 +4,14 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AppConfigModule } from './common/config/app-config.module';
 import { HashingModule } from './common/hashing/hashing.module';
+import { projectEnvSchema } from './config/env.schema';
 
 @Module({
   imports: [
-    AppConfigModule.forProject(),
+    AppConfigModule.forProject(projectEnvSchema),
     HashingModule,
-    PrismaModule,],
+    PrismaModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

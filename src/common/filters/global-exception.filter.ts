@@ -29,7 +29,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = res;
         error = exception.name;
       } else if (typeof res === 'object' && res !== null) {
-        const resObj = res as Record<string, any>;
+        const resObj = res as { message?: string | string[]; error?: string };
         message = resObj.message ?? exception.message;
         error = resObj.error ?? exception.name;
       }

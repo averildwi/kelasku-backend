@@ -2,7 +2,22 @@
 
 Build order derived from `PRD.md` (F-IDs), `DATA_MODEL.md`, `API_SPEC.md`, `SPEC_AUDIT_V2.md` (READY after the second fix round) and the skills. One commit per step, each with its code + DTOs + tests (+ migration when the schema changes). The agent executes step by step; each step ends with the verification commands from `git-workflow` rule 5–6.
 
-> Branch discipline: the first step creates `feat/sprint-0-foundation` (never work on `main`). Later steps commit onto the branch in order; topic branches per step are optional — if used, they branch from the previous step.
+> Branch discipline: never work on `main`. One branch per milestone, many commits inside it (each step below states its branch). Create the branch at the first step that uses it (`git switch -c <branch>`); later steps of the same milestone commit onto it. When a milestone's steps are done and verified, **tell the user the branch is ready to push and merge** (with the step numbers and commit list) and wait for their go-ahead — do not push or merge yourself.
+
+### Branch map
+
+| Branch | Steps | Topic |
+|---|---|---|
+| `feat/sprint-0-foundation` | 1–7 | docs, common types, env, prisma schema, mail, auth, route-guards meta-test |
+| `feat/users` | 8 | profile |
+| `feat/classrooms` | 9–10 | class management + membership lifecycle |
+| `feat/class-content` | 11–12 | announcements, subjects, lesson-schedules |
+| `feat/notifications` | 13 | push infra, devices, inbox |
+| `feat/whiteboards` | 14 | whiteboard + Cloudinary |
+| `feat/pickets-polls` | 15–16 | pickets + cron, polls |
+| `feat/cash` | 17–18 | cash transactions, dues |
+| `chore/final-pass` | 19 | README, cleanup, full e2e |
+
 
 ## Step 0 — Scaffolds (DONE, do not redo)
 
@@ -19,6 +34,7 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 2 — feat(common): auth types + project env schema
 
+- **Branch**: `feat/sprint-0-foundation` (already created in step 1)
 - **Commit**: `refactor(common): type auth-user against the prisma global role enum`
 - **Files**:
   - `src/common/types/auth-user.ts` — `RoleName = GlobalRole`, `UserId = string`, `JwtPayload { sub, email, tv }` (the three edits allowed by rule 24)
@@ -30,6 +46,7 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 3 — feat(prisma): full schema + first migration + partial indexes
 
+- **Branch**: `feat/sprint-0-foundation`
 - **Commit**: `feat(prisma): add kelasku schema with membership and office partial indexes`
 - **Files**: `prisma/schema.prisma` (per `DATA_MODEL.md`: User, OtpCode, Classroom, ClassMember, Announcement, AnnouncementRead, Subject, LessonSchedule, WhiteboardNote, WhiteboardImage, PicketGroup, PicketMember, Poll, PollOption, PollVote, CashTransaction, CashDue, CashDuePayment, DeviceToken, Notification, NotificationLog), migration folder from `npx prisma migrate dev --name add_kelasku_schema`, plus the partial-index SQL appended into that migration:
   - `one_active_membership (userId) WHERE isActive`
@@ -44,6 +61,7 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 4 — feat(common): mail port (OTP sender)
 
+- **Branch**: `feat/sprint-0-foundation`
 - **Commit**: `feat(common): add otp sender port with resend and console adapters`
 - **Files**: `src/common/mail/otp-sender.ts`, `resend-otp-sender.ts`, `console-otp-sender.ts`, `mail.module.ts`; `app.module.ts` (import MailModule)
 - **Delivers**: F-AUTH-1/3 transport.
@@ -51,6 +69,7 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 5 — feat(auth): core (login / me / change-password / logout-all) + JWT strategy
 
+- **Branch**: `feat/sprint-0-foundation`
 - **Commit**: `feat(auth): add core login and session endpoints with token version revocation`
 - **Files** (copy from the reference implementation, do not rewrite): `src/auth/auth.module.ts`, `strategies/jwt.strategy.ts`, `auth.service.ts` (core methods only), `auth.controller.ts` (login, me, change-password, logout-all), `dto/login.dto.ts`, `dto/change-password.dto.ts`; `app.module.ts` (ThrottlerModule.forRoot + APP_GUARD ThrottlerGuard + AuthModule)
 - **Delivers**: F-AUTH-2/3/4 (core), BR-18 baseline (email normalize comes with register).
@@ -59,6 +78,7 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 6 — feat(auth): register + OTP flows
 
+- **Branch**: `feat/sprint-0-foundation`
 - **Commit**: `feat(auth): add register with email verification and password reset otp`
 - **Files**: `src/auth/otp/otp.service.ts`, `decorators/auth-fields.decorator.ts`, `dto/{register,verify-otp,request-code,reset-password}.dto.ts`, extend `auth.service.ts` + `auth.controller.ts` (register, verify-otp, resend-otp, forgot-password, reset-password)
 - **Delivers**: F-AUTH-1, F-AUTH-3 (reset), BR-17, BR-18; `verify-otp` issues a token for both roles (documented deviation).
@@ -66,6 +86,7 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 7 — test: route-guards meta-test + auth e2e
 
+- **Branch**: `feat/sprint-0-foundation` (last step of this milestone — when green, tell the user it is ready to push and merge)
 - **Commit**: `test(auth): add route guards meta-test and auth e2e coverage`
 - **Files**: `test/route-guards.e2e-spec.ts` (from test-recipes.md, required), `test/auth.e2e-spec.ts`, `test/utils/test-app.factory.ts`, `test/jest-e2e.json` update if needed, `package.json` script `test:e2e` with `node --experimental-vm-modules`
 - **Delivers**: the fail-open brake for every later controller.
@@ -73,18 +94,21 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 8 — feat(users): profile
 
+- **Branch**: `feat/users` (create here, branched from `main`; when green, tell the user it is ready to push and merge)
 - **Commit**: `feat(users): add profile update endpoint`
 - **Files**: `src/users/users.module.ts`, `users.controller.ts`, `users.service.ts`, `dto/update-profile.dto.ts`, `app.module.ts`; spec.
 - **Delivers**: F-AUTH-4.
 
 ## Step 9 — feat(classrooms): class management
 
+- **Branch**: `feat/classrooms` (create here)
 - **Commit**: `feat(classrooms): add classroom create list detail update and code regeneration`
 - **Files**: `src/classrooms/classrooms.module.ts`, `classrooms.controller.ts`, `classrooms.service.ts`, `dto/{create-classroom,update-classroom,query-classroom}.dto.ts`, `src/common/helpers/class-code.helper.ts` (BR-6), spec (`code alphabet/length, uniqueness retry, quota BR-4`).
 - **Delivers**: F-CLASS-1, BR-4/5/6.
 
 ## Step 10 — feat(classrooms): membership lifecycle
 
+- **Branch**: `feat/classrooms` (last step of this milestone — when green, tell the user it is ready to push and merge)
 - **Commit**: `feat(classrooms): add join leave kick restore and assign role with row locking`
 - **Files**: `src/classrooms/members.controller.ts`, `members.service.ts`, `dto/{join-classroom,kick-member,assign-role,query-member}.dto.ts`, spec (BR-1 demote-in-transaction, BR-2/3 errors, BR-7 soft kick, BR-8 role revert, 409 invalid states incl. restore-of-LEFT).
 - **Delivers**: F-CLASS-2..6, BR-1/2/3/7/8.
@@ -92,12 +116,14 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 11 — feat(announcements)
 
+- **Branch**: `feat/class-content` (create here)
 - **Commit**: `feat(announcements): add announcement crud with read receipts`
 - **Files**: module/controller/service, `dto/{create,update,query}-announcement.dto.ts`, spec (BR-9 ownership, BR-10 idempotent receipts + stats vs active members).
 - **Delivers**: F-ANN-1, F-ANN-2, BR-9/10. (Push fan-out wired in step 13 via event emission — emit from step 13 on, no dependency now.)
 
 ## Step 12 — feat(subjects) + feat(lesson-schedules)
 
+- **Branch**: `feat/class-content` (last step of this milestone — when green, tell the user it is ready to push and merge)
 - **Commit**: `feat(subjects): add subject crud with soft delete`
 - **Files**: module/controller/service, DTOs, spec.
 - **Commit 2**: `feat(lesson-schedules): add weekly schedule with overlap validation`
@@ -106,6 +132,7 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 13 — feat(common): push infrastructure + devices + inbox
 
+- **Branch**: `feat/notifications` (create here; when green, tell the user it is ready to push and merge)
 - **Commit**: `feat(common): add firebase push sender with notification log claim`
 - **Files**: `src/common/notifications/{notifications.module.ts, firebase.service.ts, push-sender.service.ts}`; spec for the BR-16 claim (parallel send → one inbox row + one log row).
 - **Commit 2**: `feat(devices): add fcm device token registration`
@@ -116,6 +143,7 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 14 — feat(whiteboards) (needs Cloudinary)
 
+- **Branch**: `feat/whiteboards` (create here; when green, tell the user it is ready to push and merge)
 - **Commit**: `feat(common): add cloudinary storage service`
 - **Files**: `src/common/upload/{upload.module.ts, storage.service.ts}`, spec (folder `kelasku/<classId>/whiteboard`, delete best-effort logging without swallowing).
 - **Commit 2**: `feat(whiteboards): add whiteboard note upload with image validation`
@@ -124,30 +152,35 @@ Already committed on `main`: `82cbc0c` initial, `6c339a8` prisma scaffold, `76cf
 
 ## Step 15 — feat(pickets) + H-1 cron
 
+- **Branch**: `feat/pickets-polls` (create here)
 - **Commit**: `feat(pickets): add weekly duty groups with h1 reminder cron`
 - **Files**: `src/pickets/{pickets.module.ts,pickets.controller.ts,pickets.service.ts,pickets.scheduler.ts}`, `dto/replace-picket-day.dto.ts`, spec (replace-day, days: number[] for /me; cron calls push-sender with NotificationLog claim).
 - **Delivers**: F-PICKET-1, F-PICKET-2, BR-16.
 
 ## Step 16 — feat(polls)
 
+- **Branch**: `feat/pickets-polls` (last step of this milestone — when green, tell the user it is ready to push and merge)
 - **Commit**: `feat(polls): add polls with vote replace and close`
 - **Files**: `src/polls/{polls.module.ts,polls.controller.ts,polls.service.ts}`, `dto/{create-poll,vote,query-poll}.dto.ts`, spec (BR-14: closed 403, wali cannot vote, re-vote delete+create in one transaction, anonymous hides voters).
 - **Delivers**: F-POLL-1.
 
 ## Step 17 — feat(cash): transactions
 
+- **Branch**: `feat/cash` (create here)
 - **Commit**: `feat(cash-transactions): add cash ledger with void instead of delete`
 - **Files**: `src/cash-transactions/{cash-transactions.module.ts,cash-transactions.controller.ts,cash-transactions.service.ts}`, `dto/{create,void,query}-cash-transaction.dto.ts`, spec (BR-15: amount validation, void keeps row, bendahara-only writes, summary balance).
 - **Delivers**: F-CASH-1.
 
 ## Step 18 — feat(cash): dues & payments
 
+- **Branch**: `feat/cash` (last step of this milestone — when green, tell the user it is ready to push and merge)
 - **Commit**: `feat(cash-dues): add dues with payment status and linked ledger entries`
 - **Files**: `src/cash-dues/{cash-dues.module.ts,cash-dues.controller.ts,cash-dues.service.ts}`, `dto/{create-due,query-due}.dto.ts`, spec (snapshot createMany; pay creates linked INCOME in one transaction; unpay voids it; computed UNPAID for late joiners; 409 invalid states).
 - **Delivers**: F-CASH-2, BR-15.
 
 ## Step 19 — final pass
 
+- **Branch**: `chore/final-pass` (create here; when green, tell the user it is ready to push and merge)
 - **Commit**: `docs(readme): document environment variables and setup`
 - **Files**: `README.md` (env vars table, setup, test commands), remove the stale `app.controller.ts`/`app.service.ts` hello-world if unused (`refactor(app): remove hello world scaffold` as its own commit).
 - **Verify (whole project)**: `npx eslint "{src,apps,libs,test}/**/*.ts"`, `npm run test`, `npm run build`, and (DB available) `npm run test:e2e` including the parallel-join race and the meta-test.
