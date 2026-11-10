@@ -12,6 +12,7 @@ import { AppConfigModule } from './common/config/app-config.module';
 import { HashingModule } from './common/hashing/hashing.module';
 import { MailModule } from './common/mail/mail.module';
 import { NotificationsModule } from './common/notifications/notifications.module';
+import { UploadModule } from './common/upload/upload.module';
 import { projectEnvSchema } from './config/env.schema';
 import { LessonSchedulesModule } from './lesson-schedules/lesson-schedules.module';
 import { NotificationsModule as NotificationInboxModule } from './notifications/notifications.module';
@@ -24,6 +25,7 @@ import { UsersModule } from './users/users.module';
     HashingModule,
     MailModule,
     NotificationsModule,
+    UploadModule,
     PrismaModule,
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     AuthModule,
