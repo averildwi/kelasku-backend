@@ -7,11 +7,14 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ClassroomsModule } from './classrooms/classrooms.module';
+import { DevicesModule } from './devices/devices.module';
 import { AppConfigModule } from './common/config/app-config.module';
 import { HashingModule } from './common/hashing/hashing.module';
 import { MailModule } from './common/mail/mail.module';
+import { NotificationsModule } from './common/notifications/notifications.module';
 import { projectEnvSchema } from './config/env.schema';
 import { LessonSchedulesModule } from './lesson-schedules/lesson-schedules.module';
+import { NotificationsModule as NotificationInboxModule } from './notifications/notifications.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { UsersModule } from './users/users.module';
 
@@ -20,6 +23,7 @@ import { UsersModule } from './users/users.module';
     AppConfigModule.forProject(projectEnvSchema),
     HashingModule,
     MailModule,
+    NotificationsModule,
     PrismaModule,
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     AuthModule,
@@ -28,6 +32,8 @@ import { UsersModule } from './users/users.module';
     AnnouncementsModule,
     SubjectsModule,
     LessonSchedulesModule,
+    DevicesModule,
+    NotificationInboxModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
