@@ -14,6 +14,7 @@ import { MailModule } from './common/mail/mail.module';
 import { NotificationsModule } from './common/notifications/notifications.module';
 import { projectEnvSchema } from './config/env.schema';
 import { LessonSchedulesModule } from './lesson-schedules/lesson-schedules.module';
+import { NotificationsModule as NotificationInboxModule } from './notifications/notifications.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { UsersModule } from './users/users.module';
 
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     SubjectsModule,
     LessonSchedulesModule,
     DevicesModule,
+    NotificationInboxModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
