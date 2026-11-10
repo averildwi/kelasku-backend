@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -8,12 +9,15 @@ import { Test } from '@nestjs/testing';
 import { HashingService } from '../common/hashing/hashing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
+import { OtpService } from './otp/otp.service';
 
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: {
-    user: { findUnique: jest.Mock; update: jest.Mock };
+    user: { findUnique: jest.Mock; create: jest.Mock; update: jest.Mock };
   };
+  let tx: { user: { update: jest.Mock } };
+  let otp: { issue: jest.Mock; consume: jest.Mock };
   const hashing = new HashingService();
   const jwt = new JwtService({ secret: 'x'.repeat(32) });
   let passwordHash: string;
@@ -24,7 +28,15 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     prisma = {
-      user: { findUnique: jest.fn(), update: jest.fn() },
+      user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+    };
+    tx = { user: { update: jest.fn().mockResolvedValue({ id: 'u1' }) } };
+    otp = {
+      issue: jest.fn(),
+      consume: jest.fn(
+        (_u: string, _p: string, _c: string, cb: (t: typeof tx) => unknown) =>
+          cb(tx),
+      ),
     };
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -32,6 +44,7 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: HashingService, useValue: hashing },
         { provide: JwtService, useValue: jwt },
+        { provide: OtpService, useValue: otp },
       ],
     }).compile();
     service = moduleRef.get(AuthService);
@@ -104,6 +117,83 @@ describe('AuthService', () => {
     });
   });
 
+  describe('AuthService.register', () => {
+    it('creates an unverified account and sends a verification code', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'u1', email: 'a@x.com' });
+
+      await service.register({
+        name: 'Budi',
+        email: 'a@x.com',
+        password: 'correct horse',
+        globalRole: 'MURID',
+      });
+
+      const [{ data }] = prisma.user.create.mock.calls[0] as [
+        { data: { name: string; globalRole: string; passwordHash: string } },
+      ];
+      expect(data.name).toBe('Budi');
+      expect(data.globalRole).toBe('MURID');
+      await expect(
+        hashing.verify('correct horse', data.passwordHash),
+      ).resolves.toBe(true);
+      expect(otp.issue).toHaveBeenCalledWith(
+        { id: 'u1', email: 'a@x.com' },
+        'EMAIL_VERIFICATION',
+      );
+    });
+
+    it('never touches an existing account, verified or not', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'u1' });
+
+      await expect(
+        service.register({
+          name: 'Budi',
+          email: 'a@x.com',
+          password: 'new password',
+          globalRole: 'MURID',
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('AuthService.verifyEmail', () => {
+    it('issues a token for a self-registration role', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'u1' });
+      tx.user.update.mockResolvedValue({
+        id: 'u1',
+        email: 'a@x.com',
+        globalRole: 'WALI_KELAS',
+        isActive: true,
+        tokenVersion: 0,
+      });
+
+      const result = await service.verifyEmail({
+        email: 'a@x.com',
+        code: '123456',
+      });
+
+      expect(result?.accessToken).toEqual(expect.any(String));
+      expect(otp.consume).toHaveBeenCalledWith(
+        'u1',
+        'EMAIL_VERIFICATION',
+        '123456',
+        expect.any(Function),
+      );
+    });
+
+    it('rejects an unknown email without consuming a code', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.verifyEmail({ email: 'nobody@x.com', code: '123456' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(otp.consume).not.toHaveBeenCalled();
+    });
+  });
+
   describe('AuthService.changePassword', () => {
     it('stores the new hash, bumps tokenVersion, and returns a fresh token', async () => {
       prisma.user.findUnique.mockResolvedValue({ passwordHash });
@@ -142,6 +232,35 @@ describe('AuthService', () => {
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('AuthService.resetPassword', () => {
+    it('stores the new hash and bumps tokenVersion in the consuming transaction', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        emailVerifiedAt: null,
+      });
+
+      await service.resetPassword({
+        email: 'a@x.com',
+        code: '123456',
+        newPassword: 'brand new pass',
+      });
+
+      expect(otp.consume).toHaveBeenCalledWith(
+        'u1',
+        'PASSWORD_RESET',
+        '123456',
+        expect.any(Function),
+      );
+      const [{ data }] = tx.user.update.mock.calls[0] as [
+        { data: { tokenVersion: unknown; passwordHash: string } },
+      ];
+      expect(data.tokenVersion).toEqual({ increment: 1 });
+      await expect(
+        hashing.verify('brand new pass', data.passwordHash),
+      ).resolves.toBe(true);
     });
   });
 

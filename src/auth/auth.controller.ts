@@ -16,9 +16,15 @@ import { MessageResponse } from '../common/interceptors/transform.interceptor';
 import { AuthService } from './auth.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { RequestCodeDto } from './dto/request-code.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
 
 // Per handler, not per class, so GET me keeps the global limit.
 const STRICT = { default: { limit: 5, ttl: 60_000 } };
+const SEND_CODE = { default: { limit: 3, ttl: 60_000 } };
+const CODE_SENT = 'If the account can receive a code, it has been sent';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -34,6 +40,55 @@ export class AuthController {
       await this.authService.login(dto),
       'Login successful',
     );
+  }
+
+  @Post('register')
+  @Throttle(STRICT)
+  @ApiOperation({ summary: '[PUBLIC] Register and send a verification code' })
+  async register(@Body() dto: RegisterDto) {
+    await this.authService.register(dto);
+    return new MessageResponse(
+      null,
+      'Registered, check your email for the code',
+    );
+  }
+
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(STRICT)
+  @ApiOperation({ summary: '[PUBLIC] Verify the email with a code' })
+  async verifyOtp(@Body() dto: VerifyOtpDto) {
+    return new MessageResponse(
+      await this.authService.verifyEmail(dto),
+      'Email verified',
+    );
+  }
+
+  @Post('resend-otp')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(SEND_CODE)
+  @ApiOperation({ summary: '[PUBLIC] Send a new verification code' })
+  async resendOtp(@Body() dto: RequestCodeDto) {
+    await this.authService.resendVerification(dto);
+    return new MessageResponse(null, CODE_SENT);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(STRICT)
+  @ApiOperation({ summary: '[PUBLIC] Send a password reset code' })
+  async forgotPassword(@Body() dto: RequestCodeDto) {
+    await this.authService.forgotPassword(dto);
+    return new MessageResponse(null, CODE_SENT);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @Throttle(STRICT)
+  @ApiOperation({ summary: '[PUBLIC] Reset the password with a code' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto);
+    return new MessageResponse(null, 'Password reset, please log in');
   }
 
   @Get('me')
