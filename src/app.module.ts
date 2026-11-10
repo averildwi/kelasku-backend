@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { ClassroomsModule } from './classrooms/classrooms.module';
+import { DevicesModule } from './devices/devices.module';
 import { AppConfigModule } from './common/config/app-config.module';
 import { HashingModule } from './common/hashing/hashing.module';
 import { MailModule } from './common/mail/mail.module';
@@ -30,6 +31,7 @@ import { UsersModule } from './users/users.module';
     AnnouncementsModule,
     SubjectsModule,
     LessonSchedulesModule,
+    DevicesModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
