@@ -18,6 +18,7 @@ import { LessonSchedulesModule } from './lesson-schedules/lesson-schedules.modul
 import { NotificationsModule as NotificationInboxModule } from './notifications/notifications.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { UsersModule } from './users/users.module';
+import { WhiteboardsModule } from './whiteboards/whiteboards.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module';
     AnnouncementsModule,
     SubjectsModule,
     LessonSchedulesModule,
+    WhiteboardsModule,
     DevicesModule,
     NotificationInboxModule,
   ],
