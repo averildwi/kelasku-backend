@@ -11,14 +11,22 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // ── Injected by @averildwi/nest-common ──
-  const allowedOrigins = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : '*';
+  const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',')
+    : '*';
   app.enableCors({
     origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   app.useGlobalPipes(createValidationPipe());
-  app.useGlobalInterceptors(new LoggerInterceptor(), new TransformInterceptor());
-  app.useGlobalFilters(new GlobalExceptionFilter(), new PrismaExceptionFilter());
+  app.useGlobalInterceptors(
+    new LoggerInterceptor(),
+    new TransformInterceptor(),
+  );
+  app.useGlobalFilters(
+    new GlobalExceptionFilter(),
+    new PrismaExceptionFilter(),
+  );
 
   const config = new DocumentBuilder()
     .setTitle('KelasKu')
@@ -41,4 +49,4 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

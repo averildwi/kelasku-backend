@@ -7,6 +7,10 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 
+interface RequestWithUser {
+  user?: { role?: string };
+}
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
@@ -22,14 +26,15 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const user = request.user;
 
     if (!user) {
       throw new ForbiddenException('Akses ditolak');
     }
 
-    const hasRole = requiredRoles.includes(user.role);
+    const hasRole =
+      user.role !== undefined && requiredRoles.includes(user.role);
 
     if (!hasRole) {
       throw new ForbiddenException(
