@@ -1,6 +1,7 @@
 import { PrismaModule } from './prisma/prisma.module';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { AppController } from './app.controller';
@@ -16,6 +17,7 @@ import { UploadModule } from './common/upload/upload.module';
 import { projectEnvSchema } from './config/env.schema';
 import { LessonSchedulesModule } from './lesson-schedules/lesson-schedules.module';
 import { NotificationsModule as NotificationInboxModule } from './notifications/notifications.module';
+import { PicketsModule } from './pickets/pickets.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { UsersModule } from './users/users.module';
 import { WhiteboardsModule } from './whiteboards/whiteboards.module';
@@ -29,6 +31,7 @@ import { WhiteboardsModule } from './whiteboards/whiteboards.module';
     UploadModule,
     PrismaModule,
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
+    ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
     ClassroomsModule,
@@ -36,6 +39,7 @@ import { WhiteboardsModule } from './whiteboards/whiteboards.module';
     SubjectsModule,
     LessonSchedulesModule,
     WhiteboardsModule,
+    PicketsModule,
     DevicesModule,
     NotificationInboxModule,
   ],
