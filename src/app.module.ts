@@ -4,8 +4,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AnnouncementsModule } from './announcements/announcements.module';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CashDuesModule } from './cash-dues/cash-dues.module';
 import { CashTransactionsModule } from './cash-transactions/cash-transactions.module';
@@ -49,7 +47,6 @@ import { WhiteboardsModule } from './whiteboards/whiteboards.module';
     DevicesModule,
     NotificationInboxModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
