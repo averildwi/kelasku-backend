@@ -7,6 +7,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { CashDuesModule } from './cash-dues/cash-dues.module';
 import { CashTransactionsModule } from './cash-transactions/cash-transactions.module';
 import { ClassroomsModule } from './classrooms/classrooms.module';
 import { DevicesModule } from './devices/devices.module';
@@ -44,6 +45,7 @@ import { WhiteboardsModule } from './whiteboards/whiteboards.module';
     PicketsModule,
     PollsModule,
     CashTransactionsModule,
+    CashDuesModule,
     DevicesModule,
     NotificationInboxModule,
   ],

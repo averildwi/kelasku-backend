@@ -6,7 +6,12 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { CashType, ClassRole, Prisma } from '../../generated/prisma/client';
+import {
+  CashType,
+  ClassRole,
+  PaymentStatus,
+  Prisma,
+} from '../../generated/prisma/client';
 import { paginate } from '../common/helpers/paginate.helper';
 import {
   StorageService,
@@ -43,10 +48,20 @@ export const cashTransactionSelect = {
   recordedBy: { select: { id: true, name: true, avatarUrl: true } },
 } satisfies Prisma.CashTransactionSelect;
 
+/** One active member's outstanding dues total (late joiners are computed UNPAID). */
+export interface OutstandingMember {
+  memberId: string;
+  userId: string;
+  name: string;
+  amount: number;
+}
+
 export interface CashSummary {
   balance: number;
   totalIncome: number;
   totalExpense: number;
+  outstandingTotal: number;
+  outstanding: OutstandingMember[];
 }
 
 /** BR-15: proof images live under the class folder, like the whiteboard ones. */
@@ -78,24 +93,77 @@ export class CashTransactionsService {
     private readonly storage: StorageService,
   ) {}
 
-  /** F-CASH-1: balance and totals over non-voided transactions. */
+  /**
+   * F-CASH-1/2: balance and totals over non-voided transactions, plus the
+   * outstanding per active member. A member with no payment row (joined after
+   * the due) is counted as UNPAID, so nobody silently escapes a due.
+   */
   async summary(classId: string, userId: string): Promise<CashSummary> {
     await this.assertClassAccess(classId, userId);
 
-    const [income, expense] = await this.prisma.$transaction([
-      this.prisma.cashTransaction.aggregate({
-        where: { classId, type: CashType.INCOME, voidedAt: null },
-        _sum: { amount: true },
-      }),
-      this.prisma.cashTransaction.aggregate({
-        where: { classId, type: CashType.EXPENSE, voidedAt: null },
-        _sum: { amount: true },
-      }),
-    ]);
+    const [income, expense, activeMembers, dues, payments] =
+      await this.prisma.$transaction([
+        this.prisma.cashTransaction.aggregate({
+          where: { classId, type: CashType.INCOME, voidedAt: null },
+          _sum: { amount: true },
+        }),
+        this.prisma.cashTransaction.aggregate({
+          where: { classId, type: CashType.EXPENSE, voidedAt: null },
+          _sum: { amount: true },
+        }),
+        this.prisma.classMember.findMany({
+          where: { classId, isActive: true },
+          select: {
+            id: true,
+            userId: true,
+            user: { select: { name: true } },
+          },
+        }),
+        this.prisma.cashDue.findMany({
+          where: { classId },
+          select: { id: true, amount: true },
+        }),
+        this.prisma.cashDuePayment.findMany({
+          where: { due: { classId } },
+          select: { dueId: true, memberId: true, status: true },
+        }),
+      ]);
 
     const totalIncome = income._sum.amount ?? 0;
     const totalExpense = expense._sum.amount ?? 0;
-    return { balance: totalIncome - totalExpense, totalIncome, totalExpense };
+
+    const paid = new Set(
+      payments
+        .filter((payment) => payment.status === PaymentStatus.PAID)
+        .map((payment) => `${payment.dueId}:${payment.memberId}`),
+    );
+    const outstanding: OutstandingMember[] = [];
+    for (const member of activeMembers) {
+      let amount = 0;
+      for (const due of dues) {
+        if (!paid.has(`${due.id}:${member.id}`)) amount += due.amount;
+      }
+      if (amount > 0) {
+        outstanding.push({
+          memberId: member.id,
+          userId: member.userId,
+          name: member.user.name,
+          amount,
+        });
+      }
+    }
+    const outstandingTotal = outstanding.reduce(
+      (sum, entry) => sum + entry.amount,
+      0,
+    );
+
+    return {
+      balance: totalIncome - totalExpense,
+      totalIncome,
+      totalExpense,
+      outstandingTotal,
+      outstanding,
+    };
   }
 
   /** F-CASH-1: the full ledger, newest first, voided rows included. */

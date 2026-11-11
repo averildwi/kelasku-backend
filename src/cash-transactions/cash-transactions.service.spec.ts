@@ -7,7 +7,11 @@ import {
 import { Test } from '@nestjs/testing';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { CashType, ClassRole } from '../../generated/prisma/client';
+import {
+  CashType,
+  ClassRole,
+  PaymentStatus,
+} from '../../generated/prisma/client';
 import type { UploadedImageFile } from '../common/upload/storage.service';
 import { StorageService } from '../common/upload/storage.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -63,6 +67,9 @@ describe('CashTransactionsService', () => {
       update: jest.Mock;
       aggregate: jest.Mock;
     };
+    classMember: { findMany: jest.Mock };
+    cashDue: { findMany: jest.Mock };
+    cashDuePayment: { findMany: jest.Mock };
     $transaction: jest.Mock;
   };
   let storage: { uploadImage: jest.Mock; deleteImage: jest.Mock };
@@ -78,6 +85,9 @@ describe('CashTransactionsService', () => {
         update: jest.fn(),
         aggregate: jest.fn(),
       },
+      classMember: { findMany: jest.fn() },
+      cashDue: { findMany: jest.fn() },
+      cashDuePayment: { findMany: jest.fn() },
       $transaction: jest.fn(
         (arg: ((client: unknown) => Promise<unknown>) | Promise<unknown>[]) =>
           typeof arg === 'function' ? arg({}) : Promise.all(arg),
@@ -105,6 +115,9 @@ describe('CashTransactionsService', () => {
       prisma.cashTransaction.aggregate
         .mockResolvedValueOnce({ _sum: { amount: 150000 } })
         .mockResolvedValueOnce({ _sum: { amount: 50000 } });
+      prisma.classMember.findMany.mockResolvedValue([]);
+      prisma.cashDue.findMany.mockResolvedValue([]);
+      prisma.cashDuePayment.findMany.mockResolvedValue([]);
 
       const result = await service.summary('c1', 'w1');
 
@@ -112,6 +125,8 @@ describe('CashTransactionsService', () => {
         balance: 100000,
         totalIncome: 150000,
         totalExpense: 50000,
+        outstandingTotal: 0,
+        outstanding: [],
       });
       expect(prisma.cashTransaction.aggregate).toHaveBeenNthCalledWith(1, {
         where: { classId: 'c1', type: CashType.INCOME, voidedAt: null },
@@ -131,6 +146,9 @@ describe('CashTransactionsService', () => {
       prisma.cashTransaction.aggregate
         .mockResolvedValueOnce({ _sum: { amount: null } })
         .mockResolvedValueOnce({ _sum: { amount: null } });
+      prisma.classMember.findMany.mockResolvedValue([]);
+      prisma.cashDue.findMany.mockResolvedValue([]);
+      prisma.cashDuePayment.findMany.mockResolvedValue([]);
 
       const result = await service.summary('c1', 'w1');
 
@@ -138,7 +156,39 @@ describe('CashTransactionsService', () => {
         balance: 0,
         totalIncome: 0,
         totalExpense: 0,
+        outstandingTotal: 0,
+        outstanding: [],
       });
+    });
+
+    it('computes outstanding per active member, counting late joiners as unpaid', async () => {
+      prisma.classroom.findUnique.mockResolvedValue({
+        homeroomTeacherId: 'w1',
+        members: [],
+      });
+      prisma.cashTransaction.aggregate
+        .mockResolvedValueOnce({ _sum: { amount: 0 } })
+        .mockResolvedValueOnce({ _sum: { amount: 0 } });
+      prisma.classMember.findMany.mockResolvedValue([
+        { id: 'm1', userId: 'u2', user: { name: 'Budi' } },
+        { id: 'm2', userId: 'u3', user: { name: 'Ana' } },
+      ]);
+      prisma.cashDue.findMany.mockResolvedValue([
+        { id: 'd1', amount: 20000 },
+        { id: 'd2', amount: 10000 },
+      ]);
+      prisma.cashDuePayment.findMany.mockResolvedValue([
+        { dueId: 'd1', memberId: 'm1', status: PaymentStatus.PAID },
+        { dueId: 'd1', memberId: 'm2', status: PaymentStatus.PAID },
+        { dueId: 'd2', memberId: 'm2', status: PaymentStatus.PAID },
+      ]);
+
+      const result = await service.summary('c1', 'w1');
+
+      expect(result.outstandingTotal).toBe(10000);
+      expect(result.outstanding).toEqual([
+        { memberId: 'm1', userId: 'u2', name: 'Budi', amount: 10000 },
+      ]);
     });
 
     it('throws ForbiddenException for a non-member non-homeroom caller', async () => {
