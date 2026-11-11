@@ -18,6 +18,7 @@ import { projectEnvSchema } from './config/env.schema';
 import { LessonSchedulesModule } from './lesson-schedules/lesson-schedules.module';
 import { NotificationsModule as NotificationInboxModule } from './notifications/notifications.module';
 import { PicketsModule } from './pickets/pickets.module';
+import { PollsModule } from './polls/polls.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { UsersModule } from './users/users.module';
 import { WhiteboardsModule } from './whiteboards/whiteboards.module';
@@ -40,6 +41,7 @@ import { WhiteboardsModule } from './whiteboards/whiteboards.module';
     LessonSchedulesModule,
     WhiteboardsModule,
     PicketsModule,
+    PollsModule,
     DevicesModule,
     NotificationInboxModule,
   ],
