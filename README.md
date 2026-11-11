@@ -1,98 +1,118 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# KelasKu Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend for **KelasKu**, a classroom-management app for Indonesian schools: one homeroom
+teacher (**wali kelas**) manages a class of students — announcements with read receipts,
+weekly lesson schedules, whiteboard photos for absent students, picket (cleaning) duty,
+polls, and the class cash fund (transactions and per-member dues).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Built with [NestJS](https://nestjs.com/) 11, [Prisma](https://www.prisma.io/) 7 and
+PostgreSQL. The Flutter client talks to a single REST API under `/api`.
 
-## Description
+The product spec lives in [`docs/`](./docs): [`PRD.md`](./docs/PRD.md),
+[`DATA_MODEL.md`](./docs/DATA_MODEL.md), [`API_SPEC.md`](./docs/API_SPEC.md) and
+[`FOLDER_STRUCTURE.md`](./docs/FOLDER_STRUCTURE.md). Coding conventions live in the project
+skills under [`.opencode/skills/`](./.opencode/skills).
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Requirements
 
-## Project setup
+- Node.js 22+
+- npm 10+
+- PostgreSQL 14+ (a reachable database is required to run the app, run migrations and run the e2e suite)
+
+## Setup
 
 ```bash
-$ npm install
+# 1. Install dependencies
+npm install
+
+# 2. Create your local env file and fill in the values
+cp .env.example .env
+
+# 3. Create the schema (and Prisma client)
+npx prisma migrate dev
+
+# 4. Generate the Prisma client (Prisma 7 does not regenerate on migrate)
+npx prisma generate
 ```
 
-## Compile and run the project
+## Environment variables
+
+Copy [`.env.example`](./.env.example) to `.env`. Every variable is validated at boot with
+Joi (`src/common/config/base-env.schema.ts` + `src/config/env.schema.ts`); a missing or
+invalid required value stops the app.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `DATABASE_URL` | yes | — | PostgreSQL connection string, e.g. `postgresql://user:pass@localhost:5432/kelasku?schema=public`. |
+| `PORT` | no | `3000` | HTTP port the server listens on. |
+| `NODE_ENV` | no | `development` | One of `development`, `production`, `test`. |
+| `FRONTEND_URL` | no | `*` | Comma-separated list of allowed CORS origins. Empty means no cross-origin access. Never set `*` in production. |
+| `JWT_SECRET` | yes | — | Secret used to sign access tokens (min 16 chars). |
+| `JWT_EXPIRES_IN` | no | `7d` | Access-token lifetime (e.g. `15m`, `7d`). |
+| `TRUST_PROXY_HOPS` | no | `0` | Number of reverse proxies in front of the app (used to resolve the client IP for throttling). `0` when directly exposed. Never a boolean. |
+| `OTP_SENDER` | no | `resend` | OTP delivery adapter: `resend` (real email) or `console` (prints codes to stdout; refuses to start in production). |
+| `RESEND_API_KEY` | when `OTP_SENDER=resend` | — | [Resend](https://resend.com) API key. |
+| `MAIL_FROM` | when `OTP_SENDER=resend` | — | From address for OTP emails, e.g. `KelasKu <no-reply@example.com>`. |
+| `OTP_TTL_MINUTES` | no | `10` | OTP validity in minutes (1..60). |
+| `OTP_RESEND_COOLDOWN_SECONDS` | no | `60` | Minimum seconds between two OTP sends to the same address. |
+| `CLOUDINARY_URL` | yes | — | Cloudinary URL (`cloudinary://<key>:<secret>@<cloud>`); used for whiteboard photos and cash proof images. |
+| `FIREBASE_PROJECT_ID` | yes | — | Firebase project id for FCM push notifications. |
+| `FIREBASE_CLIENT_EMAIL` | yes | — | Firebase service-account client email. |
+| `FIREBASE_PRIVATE_KEY` | yes | — | Firebase service-account private key (multiline, keep the `\n` escapes). |
+| `TZ` | no | `Asia/Jakarta` | Timezone for scheduled jobs (picket H-1 reminder). |
+
+No secrets are committed; `.env` is git-ignored.
+
+## Run
 
 ```bash
-# development
-$ npm run start
+# development (watch mode)
+npm run start:dev
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+# production build + run
+npm run build
+npm run start:prod
 ```
 
-## Run tests
+Swagger UI is served at [`/docs`](http://localhost:3000/docs) (toggle **Authorize** and paste
+the `accessToken` from `/api/auth/login` or `/api/auth/verify-otp`).
+
+## Test
 
 ```bash
 # unit tests
-$ npm run test
+npm run test
 
-# e2e tests
-$ npm run test:e2e
+# e2e tests (needs a reachable PostgreSQL via DATABASE_URL)
+npm run test:e2e
 
-# test coverage
-$ npm run test:cov
+# coverage
+npm run test:cov
+
+# lint (whole project)
+npx eslint "{src,apps,libs,test}/**/*.ts"
 ```
 
-## Deployment
+The e2e suite includes the required route-guard meta-test (every route must carry a guard or
+an explicit `[PUBLIC]` label) and the parallel-join race test (BR-12). On PostgreSQL + Prisma 7
+the e2e runner needs `node --experimental-vm-modules`, which `npm run test:e2e` already sets.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Project layout
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+src/
+  main.ts                 app wiring (CORS, pipes, interceptors, filters, Swagger)
+  app.module.ts           root module; registers every feature module
+  common/                 shared infrastructure (config, guards, filters, mail, notifications, upload)
+  prisma/                 PrismaModule + PrismaService
+  config/env.schema.ts    project-specific Joi env schema
+  auth/ users/ classrooms/ announcements/ subjects/ lesson-schedules/
+  whiteboards/ pickets/ polls/ cash-transactions/ cash-dues/ devices/ notifications/
+test/                     e2e specs + app factory
+prisma/                   schema + migrations
+docs/                     PRD, data model, API spec, implementation plan
+```
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED — internal project.
